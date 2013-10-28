@@ -1,0 +1,23 @@
+{
+  "name": "pixi-svg",
+  "version": "0.1.0",
+  "description": "render svg in pixi webgl",
+  "main": "pixi-svg.js",
+  "scripts": {
+    "test": "grunt test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/plepers/pixi-svg.git"
+  },
+  "keywords": [
+    "pixi",
+    "svg",
+    "webgl"
+  ],
+  "author": "Pierre Lepers",
+  "license": "BSD",
+  "bugs": {
+    "url": "https://github.com/plepers/pixi-svg/issues"
+  }
+}
