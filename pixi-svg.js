@@ -12,54 +12,107 @@ var PIXI = PIXI || {};
 
 
 
-  _setupPaint = function( paint, graphics ) {
 
-    switch( paint.paintType ) {
-      case SVG_PAINTTYPE_RGBCOLOR :
+  _setupPaint = function( pattr, graphics ) {
 
-        var color = paint.rgbColor;
-        var r = parseInt( color.red.cssText, 10 );
-        var g = parseInt( color.green.cssText, 10 );
-        var b = parseInt( color.blue.cssText, 10 );
-        graphics.beginFill( (r<<16)|(g<<8)|b );
-        break;
-      case SVG_PAINTTYPE_UNKNOWN              :
-      case SVG_PAINTTYPE_RGBCOLOR_ICCCOLOR    :
-      case SVG_PAINTTYPE_NONE                 :
-      case SVG_PAINTTYPE_CURRENTCOLOR         :
-      case SVG_PAINTTYPE_URI_NONE             :
-      case SVG_PAINTTYPE_URI_CURRENTCOLOR     :
-      case SVG_PAINTTYPE_URI_RGBCOLOR         :
-      case SVG_PAINTTYPE_URI_RGBCOLOR_ICCCOLOR:
-      case SVG_PAINTTYPE_URI:
+    var opacity = pattr[OPACITY];
+    var alpha;
+
+    if( opacity !== null )
+      alpha = parseFloat( opacity.cssText );
+    else alpha = 1.0;
+
+    var paint = pattr[FILL];
+
+    if( paint ) {
+
+      switch( paint.paintType ) {
+        case SVG_PAINTTYPE_RGBCOLOR :
+
+          var color = paint.rgbColor;
+          var r = parseInt( color.red.cssText, 10 );
+          var g = parseInt( color.green.cssText, 10 );
+          var b = parseInt( color.blue.cssText, 10 );
+          graphics.beginFill( (r<<16)|(g<<8)|b , alpha );
+          break;
+
+      }
+
+    }
+  }
+
+  _tearDownPaint = function( pattr, g ) {
+
+    var paint = pattr[FILL];
+
+    if( paint ) {
+
+      switch( paint.paintType ) {
+        case SVG_PAINTTYPE_RGBCOLOR :
+          g.endFill();
+          break;
+      }
     }
 
   }
 
-  _tearDownPaint = function( paint, g ) {
 
-    switch( paint.paintType ) {
-      case SVG_PAINTTYPE_RGBCOLOR :
-        g.endFill();
-        break;
-      case SVG_PAINTTYPE_UNKNOWN              :
-      case SVG_PAINTTYPE_RGBCOLOR_ICCCOLOR    :
-      case SVG_PAINTTYPE_NONE                 :
-      case SVG_PAINTTYPE_CURRENTCOLOR         :
-      case SVG_PAINTTYPE_URI_NONE             :
-      case SVG_PAINTTYPE_URI_CURRENTCOLOR     :
-      case SVG_PAINTTYPE_URI_RGBCOLOR         :
-      case SVG_PAINTTYPE_URI_RGBCOLOR_ICCCOLOR:
-      case SVG_PAINTTYPE_URI:
-    }
+  Stack = function() {
+    var s = this._stack = {};
+
+    for(var i=0; i<NPROPS;i++)
+       s[PPROPS[i]] = [];
 
   }
+
+  Stack.prototype.pushNode = function(node){
+    var val, p, s = this._stack;
+    for(var i=0; i<NPROPS;i++){
+      p = PPROPS[i];
+      val = node.getPresentationAttribute(p);
+      if( val )
+        s[p].push(val);
+    }
+  }
+
+  Stack.prototype.popNode = function(node){
+    var val, p, s = this._stack;
+    for(var i=0; i<NPROPS;i++){
+      p = PPROPS[i];
+      val = node.getPresentationAttribute(p);
+      if( val )
+        s[p].pop();
+    }
+  }
+
+  Stack.prototype.getAttributes = function(){
+    var p, l, att = {}, s = this._stack;
+    for(var i=0; i<NPROPS;i++){
+      p = PPROPS[i];
+      l = s[p].length
+      if( l > 0 )
+        att[p] = s[p][l-1];
+      else
+        att[p]=null;
+    }
+
+    return att;
+  }
+
+
+
+
+
 
 
   Traverser = function( g ) {
     var ctx = this.context = {};
+
+    ctx.stack = new Stack();
+
     ctx.displayStack = [];
-    ctx.paintStack = [];
+    ctx.fillStack = [];
+    ctx.alphaStack = [];
     ctx.graphics = g;
   }
 
@@ -67,20 +120,20 @@ var PIXI = PIXI || {};
     var i, l, paint;
     var ctx = this.context;
 
+    var hasPAttributes = (node.getPresentationAttribute !== undefined);
 
+    if( hasPAttributes )
+      ctx.stack.pushNode( node );
 
-    if( node.getPresentationAttribute !== undefined ) {
-      paint = node.getPresentationAttribute('fill');
-      if(paint!==null){
-        ctx.paintStack.push( paint );
-        _setupPaint( paint, ctx.graphics );
-      }
-    }
 
 
 
     var plist = node.Points || node.animatedPoints;
     if( plist !== undefined && plist.numberOfItems>0) {
+
+      var pAttr = ctx.stack.getAttributes();
+
+      _setupPaint( pAttr, ctx.graphics );
 
       var point = plist.getItem( 0 );
 
@@ -90,6 +143,8 @@ var PIXI = PIXI || {};
         point = plist.getItem( i );
         ctx.graphics.lineTo( point.x, point.y );
       }
+
+      _tearDownPaint( pAttr, ctx.graphics );
     }
 
 
@@ -103,11 +158,10 @@ var PIXI = PIXI || {};
       }
     }
 
-    if( paint !== null ) {
-      ctx.paintStack.pop();
-      _tearDownPaint( paint, ctx.graphics );
-      _setupPaint( ctx.graphics, ctx.paintStack[ctx.paintStack.length-1] );
-    }
+
+    if( hasPAttributes )
+      ctx.stack.popNode( node );
+
 
 
   }
@@ -132,7 +186,15 @@ var PIXI = PIXI || {};
   PIXI.Svg.prototype.constructor = PIXI.Svg;
 
 
+  const FILL    = "fill";
+  const OPACITY = "opacity";
 
+  const PPROPS = [
+    FILL,
+    OPACITY
+  ];
+
+  const NPROPS = PPROPS.length;
 
 
   const SVG_PAINTTYPE_UNKNOWN               = 0;
