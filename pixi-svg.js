@@ -4,13 +4,13 @@
  */
 
 
-var PIXI = PIXI || {};
 
-(function(){
+(function( global){
 
   var __hasProp = {}.hasOwnProperty;
 
 
+  var PIXI = global.PIXI || {};
 
 
   _setupPaint = function( pattr, graphics ) {
@@ -208,4 +208,7 @@ var PIXI = PIXI || {};
   const SVG_PAINTTYPE_URI_RGBCOLOR_ICCCOLOR = 106;
   const SVG_PAINTTYPE_URI                   = 107;
 
-})()
+
+
+  global.PIXI = PIXI
+})(this)
