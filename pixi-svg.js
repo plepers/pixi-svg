@@ -15,29 +15,12 @@
 
   _setupPaint = function( pattr, graphics ) {
 
-    var opacity = pattr[OPACITY];
-    var alpha;
+    var alpha = parseOpacity( pattr[OPACITY] );
 
-    if( opacity !== null )
-      alpha = parseFloat( opacity.cssText );
-    else alpha = 1.0;
+    var color = parseColor( pattr[FILL] );
 
-    var paint = pattr[FILL];
-
-    if( paint ) {
-
-      switch( paint.paintType ) {
-        case SVG_PAINTTYPE_RGBCOLOR :
-
-          var color = paint.rgbColor;
-          var r = parseInt( color.red.cssText, 10 );
-          var g = parseInt( color.green.cssText, 10 );
-          var b = parseInt( color.blue.cssText, 10 );
-          graphics.beginFill( (r<<16)|(g<<8)|b , alpha );
-          break;
-
-      }
-
+    if( color !== null ) {
+      graphics.beginFill( color , alpha );
     }
   }
 
@@ -69,7 +52,7 @@
     var val, p, s = this._stack;
     for(var i=0; i<NPROPS;i++){
       p = PPROPS[i];
-      val = node.getPresentationAttribute(p);
+      val = getPresentationAttribute(node, p);
       if( val )
         s[p].push(val);
     }
@@ -79,7 +62,7 @@
     var val, p, s = this._stack;
     for(var i=0; i<NPROPS;i++){
       p = PPROPS[i];
-      val = node.getPresentationAttribute(p);
+      val = getPresentationAttribute(node, p);
       if( val )
         s[p].pop();
     }
@@ -120,7 +103,7 @@
     var i, l, paint;
     var ctx = this.context;
 
-    var hasPAttributes = (node.getPresentationAttribute !== undefined);
+    var hasPAttributes = hasPresentationAttribute(node);
 
     if( hasPAttributes )
       ctx.stack.pushNode( node );
@@ -186,6 +169,40 @@
   PIXI.Svg.prototype.constructor = PIXI.Svg;
 
 
+
+
+  function getPresentationAttribute( node, attrName ){
+    var attNode = node.attributes.getNamedItem( attrName );
+    if( attNode )
+      return attNode.nodeValue;
+    return null;
+  }
+
+  function hasPresentationAttribute( node ){
+    var res = false;
+    var i, l;
+    for (i = 0, l = PPROPS.length; i < l; i++) {
+      var attrName = PPROPS[i];
+      res |= ( getPresentationAttribute( node, attrName ) != undefined );
+    }
+    return res;
+  }
+
+  function parseOpacity( str ) {
+    var c = parseFloat( str );
+    if( isNaN(c) )
+      c = 1.0;
+    return c;
+  }
+
+
+  function parseColor( str ) {
+    var c = parseInt( str.substr(1), 16 );
+    if( isNaN(c) )
+      c = null;
+    return c;
+  }
+
   const FILL    = "fill";
   const OPACITY = "opacity";
 
@@ -193,6 +210,7 @@
     FILL,
     OPACITY
   ];
+
 
   const NPROPS = PPROPS.length;
 
